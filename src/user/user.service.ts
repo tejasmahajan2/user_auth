@@ -1,10 +1,11 @@
 /* eslint-disable prettier/prettier */
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -14,6 +15,18 @@ export class UserService {
   ) {}
 
   async create(createUserDto: CreateUserDto) {
+    const saltRounds = 10;
+    const userEmail = createUserDto.email;
+    const isUserExist = await this.usersRepository.exists({
+      where : {
+        email : userEmail
+      }
+    });
+    if (isUserExist) {
+      throw new HttpException('User already exist.', HttpStatus.BAD_REQUEST);
+    };
+
+    createUserDto.password = await bcrypt.hash(createUserDto.password, saltRounds);
     return await this.usersRepository.save(createUserDto);
   }
 
@@ -32,5 +45,9 @@ export class UserService {
 
   async remove(id: number): Promise<void> {
     await this.usersRepository.delete(id);
+  }
+
+  async removeAll(): Promise<void> {
+    await this.usersRepository.delete({});
   }
 }

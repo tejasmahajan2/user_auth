@@ -8,4 +8,5 @@ npm install --save @nestjs/typeorm typeorm pg
 # nest g controller user
 nest g resource 
 # resource_name : users > layer : REST API > CRUD : Y
+npm install --save @nestjs/jwt
 ```

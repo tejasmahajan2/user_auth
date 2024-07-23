@@ -1,33 +1,51 @@
 /* eslint-disable prettier/prettier */
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { LoginUserDto } from './dto/login-user.dto';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async create(createUserDto: CreateUserDto) {
     const saltRounds = 10;
     const userEmail = createUserDto.email;
     const isUserExist = await this.usersRepository.exists({
-      where : {
-        email : userEmail
+      where: {
+        email: userEmail
       }
     });
     if (isUserExist) {
-      throw new HttpException('User already exist.', HttpStatus.BAD_REQUEST);
+      throw new BadRequestException('User already exist.');
     };
 
     createUserDto.password = await bcrypt.hash(createUserDto.password, saltRounds);
     return await this.usersRepository.save(createUserDto);
+  }
+
+  async login(loginUserDto: LoginUserDto) {
+    const userEmail = loginUserDto.email;
+    const user = await this.usersRepository.findOneBy({
+      email: userEmail
+    });
+    if (!user) {
+      throw new BadRequestException('User may not exist or invalid credentials.');
+    };
+
+    if (!await bcrypt.compare(loginUserDto.password, user.password)) {
+      throw new BadRequestException('Incorrect password.');
+    }
+
+    const message = 'Login successful.';
+    return { message };
   }
 
   findAll(): Promise<User[]> {

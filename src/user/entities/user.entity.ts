@@ -8,7 +8,7 @@ export class User {
   @Column({ length: 100 })
   name: string;
 
-  @Column({ length: 100 })
+  @Column({ unique: true, length: 100 })
   email: string;
 
   @Column({ default: true })

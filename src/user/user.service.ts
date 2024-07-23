@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -7,12 +7,15 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { LoginUserDto } from './dto/login-user.dto';
+import { JwtService } from '@nestjs/jwt';
+import { GetUserDto } from './dto/get-user.dto';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private jwtService: JwtService,
   ) { }
 
   async create(createUserDto: CreateUserDto) {
@@ -28,7 +31,9 @@ export class UserService {
     };
 
     createUserDto.password = await bcrypt.hash(createUserDto.password, saltRounds);
-    return await this.usersRepository.save(createUserDto);
+    const user = await this.usersRepository.save(createUserDto);
+    delete user.password;
+    return user;
   }
 
   async login(loginUserDto: LoginUserDto) {
@@ -44,8 +49,19 @@ export class UserService {
       throw new BadRequestException('Incorrect password.');
     }
 
-    const message = 'Login successful.';
-    return { message };
+    const jwt = await this.jwtService.signAsync({ id: user.id });
+    return jwt;
+  }
+
+  async auth(cookie: string, getUserDto: GetUserDto) {
+    const data = await this.jwtService.verifyAsync(cookie);
+    if (!data) {
+      throw new UnauthorizedException();
+    }
+
+    const user = await this.usersRepository.findOneBy({ id: data.id });
+    delete user.password;
+    return user;
   }
 
   findAll(): Promise<User[]> {

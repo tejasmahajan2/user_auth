@@ -6,11 +6,16 @@ import {
   Patch,
   Param,
   Delete,
+  Res,
+  Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
+import { Request, Response } from 'express';
+import { GetUserDto } from './dto/get-user.dto';
 
 @Controller('user')
 export class UserController {
@@ -26,12 +31,35 @@ export class UserController {
   }
 
   @Post('login')
-  login(@Body() loginUserDto: LoginUserDto) {
+  async login(
+    @Body() loginUserDto: LoginUserDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     try {
-      return this.userService.login(loginUserDto);
+      const jwtToken = await this.userService.login(loginUserDto);
+      res.cookie('jwt', jwtToken, { httpOnly: true });
+      return { message: 'Successful' };
     } catch (error) {
       return error;
     }
+  }
+
+  @Get('auth')
+  async auth(@Body() getUserDto: GetUserDto, @Req() req: Request) {
+    try {
+      const cookie = req.cookies['jwt'];
+      return this.userService.auth(cookie, getUserDto);
+    } catch (error) {
+      throw new UnauthorizedException();
+    }
+  }
+
+  @Post('logout')
+  async logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('jwt');
+    return {
+      message: 'success',
+    };
   }
 
   @Get()
